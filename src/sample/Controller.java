@@ -28,7 +28,7 @@ public class Controller {
 
     public void BtnConvert(ActionEvent actionEvent){
         try{
-            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("Stage_1.fxml"));
+            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("fxml/Stage_1.fxml"));
             Parent root1 = fxmlLoader.load();
             Stage stage = new Stage();
             stage.initModality(Modality.APPLICATION_MODAL);
@@ -50,7 +50,7 @@ public class Controller {
         Name = selectedFile.getName();
     }
     public void BtnFormat(ActionEvent actionEvent) throws IOException {
-        Encode(Name);
+        Encode(Path);
     }
 
 
@@ -72,22 +72,23 @@ public class Controller {
         );*/
 
 
-    FFmpeg ffmpeg = new FFmpeg("D:/Java/ffmpeg-3.2.1/ffmpeg");
-    FFprobe ffprobe = new FFprobe("D:/Java/ffmpeg-3.2.1/ffprobe");
+    FFmpeg ffmpeg = new FFmpeg("D:/Java/ffmpeg-3.2-win64-static/bin/ffmpeg");
+    FFprobe ffprobe = new FFprobe("D:/Java/ffmpeg-3.2-win64-static/bin/ffprobe");
 
-    public void Encode(String Name) throws IOException {
+    public void Encode(String Path) throws IOException {
 
-        FFmpegProbeResult probeResult = ffprobe.probe(Name);
+        FFmpegProbeResult probeResult = ffprobe.probe(Path);
         FFmpegFormat format = probeResult.getFormat();
+        System.out.println(Path);
         FFmpegBuilder builder = new FFmpegBuilder()
 
 
-                .setInput(String.valueOf(format))     // Filename, or a FFmpegProbeResult
+                .setInput(probeResult)     // Filename, or a FFmpegProbeResult
                 .overrideOutputFiles(true) // Override the output if it exists
 
                 .addOutput("output.mp4")   // Filename for the destination
                 .setFormat("mp4")        // Format is inferred from filename, or can be set
-                .setTargetSize(20_250_000)  // Aim for a 20MB 250KB file
+               // .setTargetSize(20_250_000)  // Aim for a 20MB 250KB file
 
                 .disableSubtitle()       // No subtiles
 
@@ -109,6 +110,6 @@ public class Controller {
         executor.createJob(builder).run();
 
         // Or run a two-pass encode (which is slower at the cost of better quality)
-      //  executor.createTwoPassJob(builder).run();
+       // executor.createTwoPassJob(builder).run();
     }
 }
