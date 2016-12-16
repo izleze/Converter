@@ -5,29 +5,25 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import net.bramp.ffmpeg.FFmpeg;
-import net.bramp.ffmpeg.FFmpegExecutor;
-import net.bramp.ffmpeg.FFprobe;
-import net.bramp.ffmpeg.builder.FFmpegBuilder;
-import net.bramp.ffmpeg.job.FFmpegJob;
-import net.bramp.ffmpeg.probe.FFmpegFormat;
-import net.bramp.ffmpeg.probe.FFmpegProbeResult;
-import net.bramp.ffmpeg.progress.Progress;
-import net.bramp.ffmpeg.progress.ProgressListener;
 
-import java.io.*;
-import java.net.URL;
-import java.util.ResourceBundle;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Optional;
 
 public class Controller {
 
-    String Path,Name;
+    String Path = null,Name = null;
+  //  Encoder Enc = new Encoder();
+
 
     public Controller() throws IOException {
     }
@@ -47,6 +43,48 @@ public class Controller {
         }
     }
     public void BtnOpenSource(ActionEvent actionEvent) throws FileNotFoundException {
+        FileChooser();
+
+        //Enc.setPathIn(Path);
+    }
+    public void BtnFormat(ActionEvent actionEvent) throws IOException {
+
+        if(Path==null){
+
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle("Confirmation Dialog");
+            alert.setHeaderText("You have to choose a file to convert");
+            alert.setContentText("Choose the file !");
+
+            Optional<ButtonType> result = alert.showAndWait();
+            if (result.get() == ButtonType.OK){
+                FileChooser();
+            } else {
+                // ... user chose CANCEL or closed the dialog
+            }
+        }
+        else {
+            File file;
+            String path;
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Save File");
+            fileChooser.getExtensionFilters().addAll(
+                    new FileChooser.ExtensionFilter("MP4","*.mp4")
+            );
+            file = fileChooser.showSaveDialog(new Stage());
+            path = file.getPath();
+            // System.out.println(path);
+            Encoder Enc = new Encoder(Path, path);
+            Enc.setPathIn(Path);
+            Enc.setPathOut(path);
+            Enc.setProgressBar(progressBar);
+            Enc.setLabelPercent(labelPercent);
+            Enc.start();
+            //Enc.Encode();
+        }
+    }
+
+    public  void FileChooser(){
         FileChooser fileChooser= new FileChooser();
         fileChooser.setTitle("Open Video File");
         fileChooser.getExtensionFilters().addAll(
@@ -55,19 +93,6 @@ public class Controller {
         Path = selectedFile.getPath();
         Name = selectedFile.getName();
     }
-    public void BtnFormat(ActionEvent actionEvent) throws IOException {
-
-        File file;
-        String path;
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Save File");
-        file = fileChooser.showSaveDialog( new Stage());
-        path = file.getPath();
-       // System.out.println(path);
-        Encode(Path, path);
-
-    }
-
 
         /*
             get process
@@ -90,87 +115,7 @@ public class Controller {
             stream.width,
             stream.height
         );*/
-
-
-    FFmpeg ffmpeg = new FFmpeg("D:/Java/ffmpeg-3.2-win64-static/bin/ffmpeg");
-    FFprobe ffprobe = new FFprobe("D:/Java/ffmpeg-3.2-win64-static/bin/ffprobe");
-
     @FXML private ProgressBar progressBar;
+    @FXML private Label labelPercent;
 
-    public void Encode(String Path, String outPath) throws IOException {
-
-        FFmpegProbeResult probeResult = ffprobe.probe(Path);
-        FFmpegFormat format = probeResult.getFormat();
-        System.out.println(Path);
-        FFmpegBuilder builder = new FFmpegBuilder()
-
-
-                .setInput(probeResult)     // Filename, or a FFmpegProbeResult
-                .overrideOutputFiles(true) // Override the output if it exists
-
-                .addOutput(outPath)   // Filename for the destination
-                .setFormat("mp4")        // Format is inferred from filename, or can be set
-                // .setTargetSize(20_250_000)  // Aim for a 20MB 250KB file
-
-                .disableSubtitle()       // No subtiles
-
-                .setAudioChannels(1)         // Mono audio
-                .setAudioCodec("aac")        // using the aac codec
-                .setAudioSampleRate(48_000)  // at 48KHz
-                .setAudioBitRate(32768)      // at 32 kbit/s
-
-                .setVideoCodec("libx264")     // Video using x264
-                .setVideoFrameRate(24, 1)     // at 24 frames per second
-                .setVideoResolution(640, 480) // at 640x480 resolution
-
-                .setStrict(FFmpegBuilder.Strict.EXPERIMENTAL) // Allow FFmpeg to use experimental specs
-                .done();
-
-        FFmpegExecutor executor = new FFmpegExecutor(ffmpeg, ffprobe);
-
-         progressBar.setProgress(0);
-        FFmpegJob job = executor.createJob(builder, new ProgressListener() {
-
-            // Using the FFmpegProbeResult determine the duraction of the input
-            final double duration_us = probeResult.getFormat().duration * 1000000.0;
-
-            @Override
-            public void progress(Progress progress) {
-                double percentage = progress.out_time_ms / duration_us;
-                progressBar.setProgress(percentage);
-                System.out.println(percentage*100);
-                // Print out interesting information about the progress
-              /* String locale = null;
-                System.out.println(String.format(locale,
-                        "[%.0f%%] status:%s frame:%d time:%d ms fps:%.0f speed:%.2fx",
-                        percentage * 100,
-                        progress.progress,
-                        progress.frame,
-                        progress.out_time_ms,
-                        progress.fps.doubleValue(),
-                        progress.speed
-                ));*/
-            }
-        });
-        job.run();
-
-       // progressBar.progressProperty().unbind();
-       // progressBar.progressProperty().bind();
-
-
-        // Run a one-pass encode
-        //executor.createJob(builder).run();
-
-        // Or run a two-pass encode (which is slower at the cost of better quality)
-        // executor.createTwoPassJob(builder).run();
-
-        /*get process
-         FFmpegExecutor executor = new FFmpegExecutor(ffmpeg, ffprobe);
-
-         */
-     /*   @Override
-        public  void initialize(URL url, ResourceBundle rb){
-
-        }*/
-    }
 }
